@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ログインしてプロフィール表示</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <button id="loginBtn" onclick="login()">Googleでログイン</button>
+  <button id="logoutBtn" onclick="logout()" style="display:none;">ログアウト</button>
+  <div id="profile"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      authDomain: "XXXXXXXXXXXXXXXXXX.firebaseapp.com",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    async function sendTokenToServer(user) {
+      const idToken = await user.getIdToken();
+      const res = await fetch("http://localhost:5151/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById("profile").innerHTML = `
+          <p>名前: ${data.name}</p>
+          <p>メール: ${data.email}</p>
+          <img src="${data.picture}" width="100">
+        `;
+        document.getElementById("loginBtn").style.display = "none";
+        document.getElementById("logoutBtn").style.display = "inline-block";
+      } else {
+        document.getElementById("profile").textContent = "エラー: " + data.error;
+      }
+    }
+
+    async function login() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      const result = await auth.signInWithPopup(provider);
+      sendTokenToServer(result.user);
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        document.getElementById("profile").innerHTML = "";
+        document.getElementById("loginBtn").style.display = "inline-block";
+        document.getElementById("logoutBtn").style.display = "none";
+      });
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        sendTokenToServer(user);
+      } else {
+        document.getElementById("profile").innerHTML = "";
+        document.getElementById("loginBtn").style.display = "inline-block";
+        document.getElementById("logoutBtn").style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>
